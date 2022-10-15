@@ -1,4 +1,4 @@
-County,State,FIPS,Population,Predicted Cases,Simulated Prediction,Predicted Ratio,MAE,MAPE,Hospitalization NNT,Death NNT,Cost ratio
+County,State,FIPS,Population,Predicted Cases,Simulated Prediction,Predicted Ratio,MAE,MAPE,Hospitalization NNT,Adjusted NNT,Cost ratio
 Lackawanna, Pennsylvania,42069,210793,150,N/A,0.0113,122.5,0.05,13770,7840,0.2773
 Lackawanna, Pennsylvania,26044,109825,135,N/A,0.0007,23.5,N/A,>100000,>100000,0.0164
 Caldwell, Louisiana,22021,9960,103,101,0.0021,25.4,N/A,54794,29052,0.0458
