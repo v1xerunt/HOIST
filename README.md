@@ -16,10 +16,13 @@ Please visit https://v1xerunt.github.io/HOIST/ for the interactive result map.
 - The infected case numbers are collected from https://github.com/CSSEGISandData/COVID-19.
 - The medical resource data are collected from https://healthdata.gov/Hospital/COVID-19-Reported-Patient-Impact-and-Hospital-Capa/g62h-syeh.
 - The claims and vaccination data are collected from https://www.iqvia.com/solutions/real-world-evidence.
+- We provide the processed version of all publicly available data in the data folder.
 
 ## Training HOIST
 
-The training functions and hyperparameters are in the ```train_hoist.py```. 
+We provide two versions of HOIST: with and without claims data. For ```train_hoist_without_claims.ipynb```, users can directly train the HOIST without accessing the claims data. The performances are worse than the version with claims data but it still outperforms baseline models.
+
+The training functions and hyperparameters used in our paper are in the ipynb files. It takes ~20 mintues to train the HOIST without claims data for 1 run on a laptop with CPU.
 
 ## Acknowledgement
 
