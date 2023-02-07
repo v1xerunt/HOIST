@@ -146,3 +146,115 @@ class HOIST_with_claim(nn.Module):
         y = self.linear(h_att)
         y = self.linear_2(F.leaky_relu(y))
         return y, [dist, total_weights, hn]
+    
+class HOIST(nn.Module):
+    def __init__(self, dynamic_dims, static_dims = None, distance_dims = None, rnn_dim=128, signs=None, device='cpu'):
+        """The HOIST Model
+        Args:
+            dynamic_dims: List of integers (Number of features in each dynamic feature category, e.g., vaccination, hospitalization, etc.).
+            static_dims (Optional): List of integers (Number of features in each static feature category, e.g., demographic, economic, etc.). If None, no static features are used.
+            distance_dims (Optional): Interger (Number of distance types, e.g., geographical, mobility, etc.). If None, no distance features are used.
+            rnn_dim: Integer (Number of hidden units in the RNN layer).
+            signs: List of 1 or -1 (Field direction of each dynamic feature category, e.g., -1 for vaccination, +1 for hospitalization, etc.). If None, all signs are positive.
+            device: String (Device to run the model, e.g., 'cpu' or 'cuda').
+            
+        Inputs:
+            dynamic: List of FloatTensor with shape (N, T, D_k) (Dynamic features). D_k is the number of features in the k-th category and it should be the same as the k-th dimension in dynamic_dims.
+            static (Optional): List of FloatTensor with shape (N, D_k) (Static features). D_k is the number of features in the k-th category and it should be the same as the k-th dimension in static_dims.
+            distance (Optional): FloatTensor with shape (N, N, D_k) (Distance features). D_k is the number of distance types and it should be the same as the dimension in distance_dims.
+            *** if both static and distance is None, the spatial relationships won't be used. ***
+            h0 (Optional): FloatTensor with shape (1, N, rnn_dim) (Initial hidden state of the RNN layer). If None, it will be initialized as a random tensor.
+        """
+        
+        super(HOIST, self).__init__()
+        self.dynamic_dims = dynamic_dims
+        self.dynamic_feats = len(dynamic_dims)
+        self.static_dims = static_dims
+        self.distance_dims = distance_dims
+        self.device = device
+        self.rnn_dim = rnn_dim
+        self.signs = signs
+        if self.signs != None:
+            try:
+                assert len(self.signs) == self.dynamic_feats
+                assert all([s == 1 or s == -1 for s in self.signs])
+            except:
+                raise ValueError('The signs should be a list of 1 or -1 with the same length as dynamic_dims.')
+        
+        self.dynamic_weights = nn.ModuleList([nn.Sequential(nn.Linear(self.dynamic_dims[i], rnn_dim), nn.LeakyReLU(), nn.Linear(rnn_dim, self.dynamic_dims[i]), nn.Sigmoid()) for i in range(self.dynamic_feats)])
+        
+        self.total_feats = np.sum(self.dynamic_dims)       
+        self.rnn = nn.LSTM(self.total_feats, rnn_dim, batch_first=True)
+        
+        self.linear = nn.Linear(rnn_dim, rnn_dim)
+        self.linear_2 = nn.Linear(rnn_dim, 1)
+        
+        self.static_dims = static_dims
+        if self.static_dims != None:
+            self.static_feats = len(static_dims)
+    
+            self.w_list = nn.ParameterList([nn.Parameter(nn.init.xavier_normal_(torch.Tensor(self.static_dims[i], self.static_dims[i]).type(torch.FloatTensor), gain=np.sqrt(2.0)), requires_grad=True).to(device) for i in range(self.static_feats)])
+            self.a_list = nn.ParameterList([nn.Parameter(nn.init.xavier_normal_(torch.Tensor(2*self.static_dims[i], 1).type(torch.FloatTensor), gain=np.sqrt(2.0)), requires_grad=True).to(device) for i in range(self.static_feats)])
+
+        if self.distance_dims != None:
+            self.W_dis = nn.Parameter(nn.init.xavier_normal_(torch.Tensor(distance_dims, distance_dims).type(torch.FloatTensor), gain=np.sqrt(2.0)), requires_grad=True).to(device)
+            self.a_dis = nn.Parameter(nn.init.xavier_normal_(torch.Tensor(distance_dims, 1).type(torch.FloatTensor), gain=np.sqrt(2.0)), requires_grad=True).to(device)
+    
+    def forward(self, dynamic, static = None, distance = None, h0 = None):
+        try:
+            assert len(dynamic) == self.dynamic_feats
+        except:
+            print('The number of dynamic features is not correct.')
+            return None
+        if self.static_dims != None:
+            try:
+                assert len(static) == self.static_feats
+            except:
+                print('The number of static features is not correct.')
+                return None
+        if self.distance_dims != None:
+            try:
+                assert distance.shape[2] == self.distance_dims
+            except:
+                print('The number of distance features is not correct.')
+                return None
+        
+        static_dis = []
+        N = dynamic[0].shape[0]
+        T = dynamic[0].shape[1]
+        if self.static_dims != None:
+            for i in range(self.static_feats):
+                h_i = torch.mm(static[i], self.w_list[i])
+                h_i = torch.cat([h_i.unsqueeze(1).repeat(1, N, 1), h_i.unsqueeze(0).repeat(N, 1, 1)], dim=2)
+                d_i = torch.sigmoid(h_i @ self.a_list[i]).reshape(N, N)
+                static_dis.append(d_i)
+
+        if self.distance_dims != None:
+            h_i = distance @ self.W_dis
+            h_i = torch.sigmoid(h_i @ self.a_dis).reshape(N, N)
+            static_dis.append(h_i)
+            
+        if self.static_dims != None or self.distance_dims != None:
+            static_dis = torch.stack(static_dis, dim=0)
+            static_dis = static_dis.sum(0)
+            static_dis = torch.softmax(static_dis, dim=-1)
+        
+        dynamic_weights = []
+        for i in range(self.dynamic_feats):
+            cur_weight = self.dynamic_weights[i](dynamic[i].reshape(N*T, -1)).reshape(N, T, -1)
+            if self.signs != None:
+                cur_weight = cur_weight * self.signs[i]
+            dynamic_weights.append(cur_weight)
+        dynamic_weights = torch.cat(dynamic_weights, dim=-1)
+
+        if h0 is None:
+            h0 = torch.randn(1, N, self.rnn_dim).to(self.device)
+        dynamic = torch.cat(dynamic, dim=-1)
+        h, hn = self.rnn(dynamic_weights*dynamic)
+        
+        if self.static_dims != None or self.distance_dims != None:
+            h_att = h.reshape(N,1,T,self.rnn_dim).repeat(1,N,1,1)
+            h = h + (h_att * static_dis.reshape(N,N,1,1)).sum(1)
+        y = self.linear(h)
+        y = self.linear_2(F.leaky_relu(y))
+        return y, [static_dis, dynamic_weights, hn]
