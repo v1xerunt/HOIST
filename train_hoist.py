@@ -34,6 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--distance', type=str, default=None)
     
     # Model Parameters
+    parser.add_argument('--use_ising', type=str, default='false')
     parser.add_argument('--dynamic_dims', nargs='+', type=int)
     parser.add_argument('--static_dims', nargs='+', type=int, default=None)
     parser.add_argument('--distance_dims', type=int, default=None)
@@ -105,7 +106,10 @@ if __name__ == '__main__':
                 y_k = torch.zeros_like(y_p)
             ising_loss = loss_fn(y_p+y_k, batch_y).mean(1).mean()
             
-            loss = loss_fn(output, batch_y).mean(-1).mean(1).mean() + ising_loss
+            if args.use_ising == 'true':
+                loss = loss_fn(output, batch_y).mean(-1).mean(1).mean() + ising_loss
+            else:
+                loss = loss_fn(output, batch_y).mean(-1).mean(1).mean()
             loss.backward()
             optimizer.step()
             epoch_loss.append(loss.item())

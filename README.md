@@ -52,6 +52,8 @@ The data path parameters are (all data files are read with ```pickle.load```):
 
 The model parameters are:
 
+``--use_ising``: (optional): ``true`` or ``false``. Whether to use the Ising loss to regularize the model. We found for some time series prediction tasks (e.g., RSV prediction), setting ising term to false may significantly improve the performance since the Ising dynamics may not applicable.
+
 ```--dynamic_dims```: List of integers. Dimensions of each category in the dynamic data. Ensure that ```len(dynamic_dims) == len(dynamic_data)```.
 
 ```--static_dims``` (optional): List of integers. Dimensions of each category in the static data. Ensure that ```len(static_dims) == len(static_data)```.
