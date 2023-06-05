@@ -1,6 +1,6 @@
 # HOIST
 
-Source code, interactive map for the paper HOIST: Evidence-Driven Spatio-Temporal COVID-19 Hospitalization Prediction with Ising Dynamics.
+Source code, interactive map for the paper [Evidence-Driven Spatio-Temporal COVID-19 Hospitalization Prediction with Ising Dynamics.](https://www.nature.com/articles/s41467-023-38756-3)
 
 Please visit https://v1xerunt.github.io/HOIST/ for the interactive result map.
 
@@ -83,3 +83,23 @@ The training functions and hyperparameters used in our paper are in the ipynb fi
 ## Acknowledgement
 
 The interactive map is built based on https://github.com/mwaugh0328/covid-19-map.
+
+## Citation
+
+Please cite our work:
+```
+@article{gao2023evidence,
+  title={Evidence-driven spatiotemporal COVID-19 hospitalization prediction with Ising dynamics},
+  author={Gao, Junyi and Heintz, Joerg and Mack, Christina and Glass, Lucas and Cross, Adam and Sun, Jimeng},
+  journal={Nature Communications},
+  volume={14},
+  number={1},
+  pages={3093},
+  year={2023},
+  publisher={Nature Publishing Group UK London}
+}
+```
+or
+```
+Gao, J., Heintz, J., Mack, C., Glass, L., Cross, A., & Sun, J. (2023). Evidence-driven spatiotemporal COVID-19 hospitalization prediction with Ising dynamics. Nature Communications, 14(1), 3093.
+```
